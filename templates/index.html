@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Deadlock Detection Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Automated Deadlock Detection Tool</h1>
+        <nav>
+            <a href="/">Home</a> | <a href="/history">View History</a>
+        </nav>
+    </header>
+    <main>
+        <p>Enter the number of processes (n) and resources (m), then fill the matrices for easy deadlock detection.</p>
+        <form method="post" id="detection-form">
+            <label>Number of Processes (n): <input type="number" name="n" id="n" required></label><br>
+            <label>Number of Resources (m): <input type="number" name="m" id="m" required></label><br>
+            
+            <h3>Allocation Matrix (n x m)</h3>
+            <div id="allocation-matrix" class="matrix"></div>
+            
+            <h3>Request Matrix (n x m)</h3>
+            <div id="request-matrix" class="matrix"></div>
+            
+            <h3>Available Resources (m values)</h3>
+            <div id="available-resources" class="resources"></div>
+            
+            <button type="submit">Detect Deadlock</button>
+        </form>
+        
+        {% if result %}
+        <div class="result">
+            <h3>Result:</h3>
+            <p>{{ result }}</p>
+            {% if suggestions %}
+            <h3>Suggestions:</h3>
+            <p>{{ suggestions }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </main>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

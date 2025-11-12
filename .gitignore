@@ -2,3 +2,6 @@
 guidelines.docx
 package-lock.json
 app.py
+static/script.js
+static/styles.css
+deadlock_history.db
