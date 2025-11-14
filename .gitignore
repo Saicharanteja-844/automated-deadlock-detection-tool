@@ -2,6 +2,5 @@
 guidelines.docx
 package-lock.json
 app.py
-static/script.js
 deadlock_history.db
 .gitignore
