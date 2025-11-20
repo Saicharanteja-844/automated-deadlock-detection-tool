@@ -22,6 +22,7 @@
                     <th>Processes (n)</th>
                     <th>Resources (m)</th>
                     <th>Result</th>
+                    <th>Suggestions</th>
                     <th>Timestamp</th>
                 </tr>
             </thead>
@@ -31,8 +32,9 @@
                     <td>{{ entry[0] }}</td>
                     <td>{{ entry[1] }}</td>
                     <td>{{ entry[2] }}</td>
-                    <td>{{ entry[3] }}</td>
-                    <td>{{ entry[4] }}</td>
+                    <td>{{ entry[6] }}</td>
+                    <td id = "suggeInHistory"><p>{{ entry[7] | safe }}</p></td>
+                    <td>{{ entry[8] }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
