@@ -29,7 +29,7 @@ nav a:hover {
 }
 
 main {
-    max-width: 900px;
+    max-width: 75%;
     margin: 20px auto;
     background: rgba(255, 255, 255, 0.95);
     padding: 30px;
@@ -132,4 +132,13 @@ tbody tr:nth-child(even) {
 tbody tr:hover {
     background-color: #e3f2fd;
     transition: background-color 0.3s ease;
+}
+p{
+    
+    font-size: 18px;
+    font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+}
+#suggeInHistory{
+    white-space:initial;       
+    max-width:400px;            
 }
