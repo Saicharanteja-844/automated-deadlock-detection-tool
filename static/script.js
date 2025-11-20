@@ -9,7 +9,7 @@ function generateMatrices() {
     // Allocation Matrix
     let allocationMatrix = '';
     for (let i = 0; i < n; i++) {
-        allocationMatrix += '<div class="row"><label>Process ' + i + ':</label> ';
+        allocationMatrix += '<div class="row"><label>Process ' + (i)   + ':</label> ';
         for (let j = 0; j < m; j++) {
             allocationMatrix += '<input type="number" name="alloc_' + i + '_' + j + '" min="0" required> ';
         }
@@ -20,7 +20,7 @@ function generateMatrices() {
     // Request Matrix
     let reqquestMatrix = '';
     for (let i = 0; i < n; i++) {
-        reqquestMatrix += '<div class="row"><label>Process ' + i + ':</label> ';
+        reqquestMatrix += '<div class="row"><label>Process ' + (i) + ':</label> ';
         for (let j = 0; j < m; j++) {
             reqquestMatrix += '<input type="number" name="req_' + i + '_' + j + '" min="0" required> ';
         }
