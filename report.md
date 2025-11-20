@@ -466,6 +466,7 @@ tbody tr:hover {
     background-color: #e3f2fd;
     transition: background-color 0.3s ease;
 }
+
 ```
 
 #### templates/history.html
