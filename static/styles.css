@@ -66,12 +66,16 @@ input:focus {
 }
 
 .row {
-    display: flex;
+    display:flexbox;
     align-items: center;
 }
 
 .row label {
     margin-right: 10px;
+}
+.row input {
+    margin-right: 8px;
+    width: 10%;
 }
 
 button {
@@ -141,4 +145,7 @@ p{
 #suggeInHistory{
     white-space:initial;       
     max-width:400px;            
+}
+.resources input{      
+    max-width:10%;            
 }
