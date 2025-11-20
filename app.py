@@ -31,6 +31,19 @@ def init_db():
 init_db()
 
 def validate_inputs(n, m, allocation, request, available):
+    """
+    Validates the input matrices and vectors for deadlock detection.
+
+    Args:
+        n (int): Number of processes.
+        m (int): Number of resources.
+        allocation (list of lists): Allocation matrix.
+        request (list of lists): Request matrix.
+        available (list): Available resources vector.
+
+    Returns:
+        tuple: (is_valid (bool), error_message (str))
+    """
     if len(allocation) != n or any(len(row) != m for row in allocation):
         return False, "Allocation matrix must be n x m."
     if len(request) != n or any(len(row) != m for row in request):
@@ -47,6 +60,19 @@ def validate_inputs(n, m, allocation, request, available):
     return True, ""
 
 def detect_deadlock(n, m, allocation, request, available):
+    """
+    Detects deadlocks using the Banker's Algorithm.
+
+    Args:
+        n (int): Number of processes.
+        m (int): Number of resources.
+        allocation (list of lists): Current allocation matrix.
+        request (list of lists): Request matrix.
+        available (list): Available resources vector.
+
+    Returns:
+        tuple: (is_deadlock (bool), deadlocked_processes (list), message (str))
+    """
     work = available.copy()
     finish = [False] * n
     while True:
@@ -65,37 +91,62 @@ def detect_deadlock(n, m, allocation, request, available):
 
 def suggest_resolution(deadlocked, allocation, request):
     if not deadlocked:
-        return "No resolution needed."
+        return "No action required."
     suggestions = [
-        f"1. Terminate deadlocked processes (e.g., {deadlocked[0]}).",
-        "2. Preempt and reallocate resources.",
-        "3. Rollback to safe state."
+        "Strategy 1: Terminate one or more deadlocked processes to break the circular wait.",
+        "Strategy 2: Preempt resources from a process and rollback.",
     ]
-    min_alloc = min(sum(allocation[i]) for i in deadlocked)
-    for i in deadlocked:
-        if sum(allocation[i]) == min_alloc:
-            suggestions.append(f"4. Recommended: Terminate process {i}.")
-            break
-    return " ".join(suggestions)
+    try:
+        victim_candidate = min(deadlocked, key=lambda i: sum(allocation[i]))
+        suggestions.append(f"Recommendation: Terminate Process P{victim_candidate} (holds fewest resources).")
+    except ValueError:
+        pass
+    return "<br>".join(suggestions)
 
 def save_to_db(n, m, allocation, request, available, result, suggestions):
+    """
+    Saves the deadlock detection result to the database.
+
+    Args:
+        n (int): Number of processes.
+        m (int): Number of resources.
+        allocation (list of lists): Allocation matrix.
+        request (list of lists): Request matrix.
+        available (list): Available resources vector.
+        result (str): Detection result message.
+        suggestions (str): Resolution suggestions.
+    """
     connection = sqlite3.connect('deadlock_history.db')
     c = connection.cursor()
     c.execute('INSERT INTO history (n, m, allocation, request, available, result, suggestions, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-              (n, m, json.dumps(allocation), json.dumps(request), json.dumps(available), result, suggestions, datetime.now().isoformat()))
+              (n, m, json.dumps(allocation), json.dumps(request),
+                json.dumps(available), result, suggestions,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     connection.commit()
     connection.close()
 
 def get_history():
+    """
+    Retrieves the deadlock detection history from the database.
+
+    Returns:
+        list: List of history records.
+    """
     connection = sqlite3.connect('deadlock_history.db')
     c = connection.cursor()
-    c.execute('SELECT id, n, m, result, timestamp FROM history ORDER BY timestamp DESC')
+    c.execute('SELECT * FROM history ORDER BY id DESC')
     rows = c.fetchall()
     connection.close()
     return rows
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    """
+    Handles the main page for deadlock detection input and results.
+
+    Returns:
+        str: Rendered HTML template.
+    """
     result = None
     suggestions = None
     if request.method == 'POST':
@@ -105,7 +156,7 @@ def index():
             allocation = [[int(request.form[f'alloc_{i}_{j}']) for j in range(m)] for i in range(n)]
             request_matrix = [[int(request.form[f'req_{i}_{j}']) for j in range(m)] for i in range(n)]
             available = [int(request.form[f'avail_{j}']) for j in range(m)]
-            
+
             valid, error = validate_inputs(n, m, allocation, request_matrix, available)
             if not valid:
                 result = f"Input error: {error}"
@@ -120,6 +171,12 @@ def index():
 
 @app.route('/history')
 def history():
+    """
+    Handles the history page displaying past deadlock detection results.
+
+    Returns:
+        str: Rendered HTML template.
+    """
     history_data = get_history()
     return render_template('history.html', history=history_data)
 
