@@ -37,7 +37,7 @@
             <p>{{ result }}</p>
             {% if suggestions %}
             <h3>Suggestions:</h3>
-            <p>{{ suggestions }}</p>
+            <p>{{ suggestions | safe }}</p>
             {% endif %}
         </div>
         {% endif %}
