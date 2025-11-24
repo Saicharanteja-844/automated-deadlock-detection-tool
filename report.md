@@ -14,18 +14,18 @@ The project is divided into three main modules:
 - **Backend Module**:
   - Input validation for processes (n), resources (m), allocation matrix, request matrix, and available resources.
   - Deadlock detection using the Banker's algorithm, identifying deadlocked processes.
-  - Generation of resolution suggestions, such as terminating processes or reallocating resources.
+  - Generation of resolution suggestions, such as terminating processes or reallocating resources, displayed line by line for readability.
   - Database integration for saving and retrieving history.
 
 - **Frontend Module**:
   - Dynamic generation of input forms based on user-specified n and m values.
-  - Display of detection results and suggestions.
+  - Display of detection results and suggestions line by line using HTML rendering.
   - Navigation between home and history pages.
   - Responsive design with CSS styling and JavaScript for interactivity.
 
 - **Database Module**:
   - Storage of detection runs with timestamps.
-  - Retrieval and display of historical data in a tabular format.
+  - Retrieval and display of historical data in a tabular format, including suggestions shown line by line.
 
 ## 4. Technology Used
 - **Programming Languages**:
@@ -119,6 +119,19 @@ def init_db():
 init_db()
 
 def validate_inputs(n, m, allocation, request, available):
+    """
+    Validates the input matrices and vectors for deadlock detection.
+
+    Args:
+        n (int): Number of processes.
+        m (int): Number of resources.
+        allocation (list of lists): Allocation matrix.
+        request (list of lists): Request matrix.
+        available (list): Available resources vector.
+
+    Returns:
+        tuple: (is_valid (bool), error_message (str))
+    """
     if len(allocation) != n or any(len(row) != m for row in allocation):
         return False, "Allocation matrix must be n x m."
     if len(request) != n or any(len(row) != m for row in request):
@@ -135,6 +148,19 @@ def validate_inputs(n, m, allocation, request, available):
     return True, ""
 
 def detect_deadlock(n, m, allocation, request, available):
+    """
+    Detects deadlocks using the Banker's Algorithm.
+
+    Args:
+        n (int): Number of processes.
+        m (int): Number of resources.
+        allocation (list of lists): Current allocation matrix.
+        request (list of lists): Request matrix.
+        available (list): Available resources vector.
+
+    Returns:
+        tuple: (is_deadlock (bool), deadlocked_processes (list), message (str))
+    """
     work = available.copy()
     finish = [False] * n
     while True:
@@ -153,37 +179,62 @@ def detect_deadlock(n, m, allocation, request, available):
 
 def suggest_resolution(deadlocked, allocation, request):
     if not deadlocked:
-        return "No resolution needed."
+        return "No action required."
     suggestions = [
-        f"1. Terminate deadlocked processes (e.g., {deadlocked[0]}).",
-        "2. Preempt and reallocate resources.",
-        "3. Rollback to safe state."
+        "Strategy 1: Terminate one or more deadlocked processes to break the circular wait.",
+        "Strategy 2: Preempt resources from a process and rollback.",
     ]
-    min_alloc = min(sum(allocation[i]) for i in deadlocked)
-    for i in deadlocked:
-        if sum(allocation[i]) == min_alloc:
-            suggestions.append(f"4. Recommended: Terminate process {i}.")
-            break
-    return " ".join(suggestions)
+    try:
+        victim_candidate = min(deadlocked, key=lambda i: sum(allocation[i]))
+        suggestions.append(f"Recommendation: Terminate Process P{victim_candidate} (holds fewest resources).")
+    except ValueError:
+        pass
+    return "<br>".join(suggestions)
 
 def save_to_db(n, m, allocation, request, available, result, suggestions):
+    """
+    Saves the deadlock detection result to the database.
+
+    Args:
+        n (int): Number of processes.
+        m (int): Number of resources.
+        allocation (list of lists): Allocation matrix.
+        request (list of lists): Request matrix.
+        available (list): Available resources vector.
+        result (str): Detection result message.
+        suggestions (str): Resolution suggestions.
+    """
     connection = sqlite3.connect('deadlock_history.db')
     c = connection.cursor()
     c.execute('INSERT INTO history (n, m, allocation, request, available, result, suggestions, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-              (n, m, json.dumps(allocation), json.dumps(request), json.dumps(available), result, suggestions, datetime.now().isoformat()))
+              (n, m, json.dumps(allocation), json.dumps(request),
+                json.dumps(available), result, suggestions,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     connection.commit()
     connection.close()
 
 def get_history():
+    """
+    Retrieves the deadlock detection history from the database.
+
+    Returns:
+        list: List of history records.
+    """
     connection = sqlite3.connect('deadlock_history.db')
     c = connection.cursor()
-    c.execute('SELECT id, n, m, result, timestamp FROM history ORDER BY timestamp DESC')
+    c.execute('SELECT * FROM history ORDER BY id DESC')
     rows = c.fetchall()
     connection.close()
     return rows
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    """
+    Handles the main page for deadlock detection input and results.
+
+    Returns:
+        str: Rendered HTML template.
+    """
     result = None
     suggestions = None
     if request.method == 'POST':
@@ -193,7 +244,7 @@ def index():
             allocation = [[int(request.form[f'alloc_{i}_{j}']) for j in range(m)] for i in range(n)]
             request_matrix = [[int(request.form[f'req_{i}_{j}']) for j in range(m)] for i in range(n)]
             available = [int(request.form[f'avail_{j}']) for j in range(m)]
-            
+
             valid, error = validate_inputs(n, m, allocation, request_matrix, available)
             if not valid:
                 result = f"Input error: {error}"
@@ -208,11 +259,18 @@ def index():
 
 @app.route('/history')
 def history():
+    """
+    Handles the history page displaying past deadlock detection results.
+
+    Returns:
+        str: Rendered HTML template.
+    """
     history_data = get_history()
     return render_template('history.html', history=history_data)
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 ```
 
 #### templates/index.html
@@ -256,7 +314,7 @@ if __name__ == '__main__':
             <p>{{ result }}</p>
             {% if suggestions %}
             <h3>Suggestions:</h3>
-            <p>{{ suggestions }}</p>
+            <p>{{ suggestions | safe }}</p>
             {% endif %}
         </div>
         {% endif %}
@@ -264,69 +322,49 @@ if __name__ == '__main__':
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
+
 ```
 
 #### static/script.js
 ```javascript
-function generateMatrix(containerId, rows, cols, prefix) {
-    const container = document.getElementById(containerId);
-    container.innerHTML = ''; // Clear previous content
-    for (let i = 0; i < rows; i++) {
-        for (let j = 0; j < cols; j++) {
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.name = `${prefix}_${i}_${j}`;
-            input.required = true;
-            input.min = 0; // Ensure non-negative values
-            container.appendChild(input);
+
+document.getElementById('n').addEventListener('input', generateMatrices);
+document.getElementById('m').addEventListener('input', generateMatrices);
+
+function generateMatrices() {
+    const n = parseInt(document.getElementById('n').value) || 0;
+    const m = parseInt(document.getElementById('m').value) || 0;
+    
+    // Allocation Matrix
+    let allocationMatrix = '';
+    for (let i = 0; i < n; i++) {
+        allocationMatrix += '<div class="row"><label>Process ' + (i)   + ':</label> ';
+        for (let j = 0; j < m; j++) {
+            allocationMatrix += '<input type="number" name="alloc_' + i + '_' + j + '" min="0" required> ';
         }
-        container.appendChild(document.createElement('br')); // New line for each row
+        allocationMatrix += '</div>';
     }
+    document.getElementById('allocation-matrix').innerHTML = allocationMatrix;
+    
+    // Request Matrix
+    let reqquestMatrix = '';
+    for (let i = 0; i < n; i++) {
+        reqquestMatrix += '<div class="row"><label>Process ' + (i) + ':</label> ';
+        for (let j = 0; j < m; j++) {
+            reqquestMatrix += '<input type="number" name="req_' + i + '_' + j + '" min="0" required> ';
+        }
+        reqquestMatrix += '</div>';
+    }
+    document.getElementById('request-matrix').innerHTML = reqquestMatrix;
+    
+    // Available Resources
+    let availableMatrix = '';
+    for (let j = 0; j < m; j++) {
+        availableMatrix += '<input type="number" name="avail_' + j + '" min="0" required> ';
+    }
+    document.getElementById('available-resources').innerHTML = availableMatrix;
 }
 
-function generateResources(containerId, cols, prefix) {
-    const container = document.getElementById(containerId);
-    container.innerHTML = ''; // Clear previous content
-    for (let j = 0; j < cols; j++) {
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.name = `${prefix}_${j}`;
-        input.required = true;
-        input.min = 0; // Ensure non-negative values
-        container.appendChild(input);
-    }
-    container.appendChild(document.createElement('br')); // New line after inputs
-}
-
-document.getElementById('n').addEventListener('input', function() {
-    const n = parseInt(this.value) || 0; // Default to 0 if invalid
-    const m = parseInt(document.getElementById('m').value) || 0; // Default to 0 if invalid
-    if (n > 0 && m > 0) {
-        generateMatrix('allocation-matrix', n, m, 'alloc');
-        generateMatrix('request-matrix', n, m, 'req');
-        generateResources('available-resources', m, 'avail');
-    } else {
-        // Clear matrices if inputs are invalid
-        document.getElementById('allocation-matrix').innerHTML = '';
-        document.getElementById('request-matrix').innerHTML = '';
-        document.getElementById('available-resources').innerHTML = '';
-    }
-});
-
-document.getElementById('m').addEventListener('input', function() {
-    const n = parseInt(document.getElementById('n').value) || 0; // Default to 0 if invalid
-    const m = parseInt(this.value) || 0; // Default to 0 if invalid
-    if (n > 0 && m > 0) {
-        generateMatrix('allocation-matrix', n, m, 'alloc');
-        generateMatrix('request-matrix', n, m, 'req');
-        generateResources('available-resources', m, 'avail');
-    } else {
-        // Clear matrices if inputs are invalid
-        document.getElementById('allocation-matrix').innerHTML = '';
-        document.getElementById('request-matrix').innerHTML = '';
-        document.getElementById('available-resources').innerHTML = '';
-    }
-});
 ```
 
 #### static/styles.css
@@ -362,7 +400,7 @@ nav a:hover {
 }
 
 main {
-    max-width: 900px;
+    max-width: 75%;
     margin: 20px auto;
     background: rgba(255, 255, 255, 0.95);
     padding: 30px;
@@ -399,12 +437,16 @@ input:focus {
 }
 
 .row {
-    display: flex;
+    display:flexbox;
     align-items: center;
 }
 
 .row label {
     margin-right: 10px;
+}
+.row input {
+    margin-right: 8px;
+    width: 10%;
 }
 
 button {
@@ -466,7 +508,18 @@ tbody tr:hover {
     background-color: #e3f2fd;
     transition: background-color 0.3s ease;
 }
-
+p{
+    
+    font-size: 18px;
+    font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+}
+#suggeInHistory{
+    white-space:initial;       
+    max-width:400px;            
+}
+.resources input{      
+    max-width:10%;            
+}
 ```
 
 #### templates/history.html
@@ -487,6 +540,7 @@ tbody tr:hover {
         </nav>
     </header>
     <main>
+        <h2>Previous Detections</h2>
         <table>
             <thead>
                 <tr>
@@ -494,21 +548,25 @@ tbody tr:hover {
                     <th>Processes (n)</th>
                     <th>Resources (m)</th>
                     <th>Result</th>
+                    <th>Suggestions</th>
                     <th>Timestamp</th>
                 </tr>
             </thead>
             <tbody>
-                {% for item in history %}
+                {% for entry in history %}
                 <tr>
-                    <td>{{ item[0] }}</td>
-                    <td>{{ item[1] }}</td>
-                    <td>{{ item[2] }}</td>
-                    <td>{{ item[3] }}</td>
-                    <td>{{ item[4] }}</td>
+                    <td>{{ entry[0] }}</td>
+                    <td>{{ entry[1] }}</td>
+                    <td>{{ entry[2] }}</td>
+                    <td>{{ entry[6] }}</td>
+                    <td id = "suggeInHistory"><p>{{ entry[7] | safe }}</p></td>
+                    <td>{{ entry[8] }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </main>
+   
 </body>
 </html>
+````
