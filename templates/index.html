@@ -37,7 +37,7 @@
             <p>{{ result }}</p>
             {% if safe_sequence %}
             <h3>Safe Sequence:</h3>
-            <p>{{ safe_sequence | join(' -> ') }}</p>
+            <p>{{ safe_sequence | map('string') | join(' -> ') }}</p>
             {% endif %}
             {% if suggestions %}
             <h3>Suggestions:</h3>
