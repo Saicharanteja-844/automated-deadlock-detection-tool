@@ -139,14 +139,24 @@ def get_history():
     Retrieves the deadlock detection history from the database.
 
     Returns:
-        list: List of history records.
+        list: List of history records with safe_sequence parsed from JSON.
     """
     connection = sqlite3.connect('deadlock_history.db')
     c = connection.cursor()
     c.execute('SELECT * FROM history ORDER BY id DESC')
     rows = c.fetchall()
     connection.close()
-    return rows
+    # Parse safe_sequence from JSON
+    parsed_rows = []
+    for row in rows:
+        parsed_row = list(row)
+        if row[8]:  # safe_sequence column
+            try:
+                parsed_row[8] = json.loads(row[8])
+            except json.JSONDecodeError:
+                parsed_row[8] = None  # In case of invalid JSON
+        parsed_rows.append(parsed_row)
+    return parsed_rows
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
