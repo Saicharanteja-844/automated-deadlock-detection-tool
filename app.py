@@ -23,8 +23,14 @@ def init_db():
                     available TEXT,
                     result TEXT,
                     suggestions TEXT,
+                    safe_sequence TEXT,
                     timestamp TEXT
                 )''')
+    # Add safe_sequence column if it doesn't exist
+    try:
+        c.execute('ALTER TABLE history ADD COLUMN safe_sequence TEXT')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     connection.commit()
     connection.close()
 
@@ -61,7 +67,7 @@ def validate_inputs(n, m, allocation, request, available):
 
 def detect_deadlock(n, m, allocation, request, available):
     """
-    Detects deadlocks using the Banker's Algorithm.
+    Detects deadlocks using the Banker's Algorithm and computes the safe sequence.
 
     Args:
         n (int): Number of processes.
@@ -71,23 +77,25 @@ def detect_deadlock(n, m, allocation, request, available):
         available (list): Available resources vector.
 
     Returns:
-        tuple: (is_deadlock (bool), deadlocked_processes (list), message (str))
+        tuple: (is_deadlock (bool), deadlocked_processes (list), message (str), safe_sequence (list))
     """
     work = available.copy()
     finish = [False] * n
+    safe_sequence = []
     while True:
         found = False
         for i in range(n):
             if not finish[i] and all(request[i][j] <= work[j] for j in range(m)):
                 work = [work[j] + allocation[i][j] for j in range(m)]
                 finish[i] = True
+                safe_sequence.append(i)
                 found = True
         if not found:
             break
     deadlocked = [i for i in range(n) if not finish[i]]
     if deadlocked:
-        return True, deadlocked, f"Deadlock detected in processes: {deadlocked}."
-    return False, [], "No deadlock detected."
+        return True, deadlocked, f"Deadlock detected in processes: {deadlocked}.", []
+    return False, [], "No deadlock detected.", safe_sequence
 
 def suggest_resolution(deadlocked, allocation, request):
     if not deadlocked:
@@ -103,7 +111,7 @@ def suggest_resolution(deadlocked, allocation, request):
         pass
     return "<br>".join(suggestions)
 
-def save_to_db(n, m, allocation, request, available, result, suggestions):
+def save_to_db(n, m, allocation, request, available, result, suggestions, safe_sequence=None):
     """
     Saves the deadlock detection result to the database.
 
@@ -115,12 +123,13 @@ def save_to_db(n, m, allocation, request, available, result, suggestions):
         available (list): Available resources vector.
         result (str): Detection result message.
         suggestions (str): Resolution suggestions.
+        safe_sequence (list): Safe sequence if no deadlock.
     """
     connection = sqlite3.connect('deadlock_history.db')
     c = connection.cursor()
-    c.execute('INSERT INTO history (n, m, allocation, request, available, result, suggestions, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    c.execute('INSERT INTO history (n, m, allocation, request, available, result, suggestions, safe_sequence, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
               (n, m, json.dumps(allocation), json.dumps(request),
-                json.dumps(available), result, suggestions,
+                json.dumps(available), result, suggestions, json.dumps(safe_sequence) if safe_sequence else None,
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     connection.commit()
     connection.close()
@@ -149,6 +158,7 @@ def index():
     """
     result = None
     suggestions = None
+    safe_sequence = None
     if request.method == 'POST':
         try:
             n = int(request.form['n'])
@@ -161,13 +171,14 @@ def index():
             if not valid:
                 result = f"Input error: {error}"
             else:
-                is_deadlock, deadlocked, message = detect_deadlock(n, m, allocation, request_matrix, available)
+                is_deadlock, deadlocked, message, safe_seq = detect_deadlock(n, m, allocation, request_matrix, available)
                 result = message
+                safe_sequence = safe_seq if not is_deadlock else None
                 suggestions = suggest_resolution(deadlocked, allocation, request_matrix)
-                save_to_db(n, m, allocation, request_matrix, available, result, suggestions)
+                save_to_db(n, m, allocation, request_matrix, available, result, suggestions, safe_sequence)
         except ValueError:
             result = "Invalid input. Enter integers only."
-    return render_template('index.html', result=result, suggestions=suggestions)
+    return render_template('index.html', result=result, suggestions=suggestions, safe_sequence=safe_sequence)
 
 @app.route('/history')
 def history():

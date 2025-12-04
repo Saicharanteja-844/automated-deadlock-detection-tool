@@ -35,6 +35,10 @@
         <div class="result">
             <h3>Result:</h3>
             <p>{{ result }}</p>
+            {% if safe_sequence %}
+            <h3>Safe Sequence:</h3>
+            <p>{{ safe_sequence | join(' -> ') }}</p>
+            {% endif %}
             {% if suggestions %}
             <h3>Suggestions:</h3>
             <p>{{ suggestions | safe }}</p>
