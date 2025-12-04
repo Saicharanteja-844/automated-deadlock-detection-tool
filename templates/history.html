@@ -22,6 +22,7 @@
                     <th>Processes (n)</th>
                     <th>Resources (m)</th>
                     <th>Result</th>
+                    <th>Safe Sequence</th>
                     <th>Suggestions</th>
                     <th>Timestamp</th>
                 </tr>
@@ -33,8 +34,9 @@
                     <td>{{ entry[1] }}</td>
                     <td>{{ entry[2] }}</td>
                     <td>{{ entry[6] }}</td>
-                    <td id = "suggeInHistory"><p>{{ entry[7] | safe }}</p></td>
-                    <td>{{ entry[8] }}</td>
+                    <td>{{ entry[8] | join(' -> ') if entry[8] else 'Deadlock detected' }}</td>
+                    <td id="suggeInHistory"><p>{{ entry[7] | safe }}</p></td>
+                    <td>{{ entry[9] }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
